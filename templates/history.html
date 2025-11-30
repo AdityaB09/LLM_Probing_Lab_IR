@@ -1,41 +1,52 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-4">Run History</h1>
+<section>
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-semibold tracking-tight">Run History</h1>
+    <a href="{{ url_for('run_probes') }}" class="btn-primary text-xs">
+      + New Run
+    </a>
+  </div>
 
-{% if runs %}
-<table class="table-basic">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Created</th>
-      <th>Dataset</th>
-      <th>Models</th>
-      <th>Samples</th>
-      <th>Mode</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for r in runs %}
-    <tr>
-      <td>#{{ r.id }}</td>
-      <td class="text-xs">{{ r.created_at }}</td>
-      <td>{{ r.dataset_name }}</td>
-      <td class="text-xs">{{ r.models }}</td>
-      <td>{{ r.sample_size }}</td>
-      <td>{{ r.mode }}</td>
-      <td>
-        <a
-          href="{{ url_for('results', run_id=r.id) }}"
-          class="text-cyan-300 hover:underline"
-          >View</a
-        >
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p class="text-slate-400">No runs recorded yet.</p>
-{% endif %}
+  {% if runs %}
+  <div class="card overflow-x-auto">
+    <table class="table-basic">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Created</th>
+          <th>Dataset</th>
+          <th>Models</th>
+          <th>Samples</th>
+          <th>Mode</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td>#{{ r.id }}</td>
+          <td class="text-xs text-slate-400">{{ r.created_at }}</td>
+          <td>{{ r.dataset_name }}</td>
+          <td class="text-xs text-slate-300">{{ r.models }}</td>
+          <td>{{ r.sample_size }}</td>
+          <td>{{ r.mode }}</td>
+          <td>
+            <a
+              href="{{ url_for('results', run_id=r.id) }}"
+              class="link-inline"
+              >View</a
+            >
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-slate-400 text-sm">
+    No runs yet. Use <b>Run Probes</b> to log your first experiment.
+  </p>
+  {% endif %}
+</section>
 {% endblock %}

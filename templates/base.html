@@ -4,31 +4,61 @@
     <meta charset="utf-8" />
     <title>LLM Probing Lab</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Tailwind CDN for utility classes -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='styles.css') }}"
+    />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
-  <body class="bg-slate-950 text-slate-100 min-h-screen">
+  <body class="bg-slate-950 text-slate-50 min-h-screen">
+    <!-- gradient background glow -->
+    <div
+      class="pointer-events-none fixed inset-0 opacity-60 mix-blend-screen"
+      style="
+        background: radial-gradient(circle at 0% 0%, #22d3ee33, transparent 55%),
+          radial-gradient(circle at 100% 0%, #a855f733, transparent 55%),
+          radial-gradient(circle at 50% 100%, #f9731633, transparent 55%);
+      "
+    ></div>
+
     <!-- Loading overlay -->
     <div
       id="global-loading"
       class="fixed inset-0 bg-slate-950/80 z-50 flex flex-col items-center justify-center hidden"
     >
       <div class="loader mb-4"></div>
-      <p class="text-cyan-300 text-lg font-semibold animate-pulse">
-        Probes are inspecting transformer layers...
+      <p class="text-cyan-300 text-lg font-semibold tracking-wide animate-pulse">
+        Probing layers, training heads, calibrating…
       </p>
-      <p class="text-slate-400 text-sm mt-2">
-        Crunching embeddings, training logistic heads, calibrating ECE.
+      <p class="text-slate-400 text-xs mt-2">
+        Hidden states → logistic probes → metrics → visualizations.
       </p>
     </div>
 
-    <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-40">
-      <nav class="max-w-6xl mx-auto flex items-center justify-between py-3 px-4">
-        <div class="text-cyan-300 font-semibold tracking-wide">
-          LLM Probing Lab
+    <!-- Top nav -->
+    <header
+      class="sticky top-0 z-40 backdrop-blur bg-slate-950/80 border-b border-slate-800/80"
+    >
+      <nav
+        class="max-w-6xl mx-auto flex items-center justify-between px-4 py-3"
+      >
+        <div class="flex items-center gap-2">
+          <div
+            class="h-7 w-7 rounded-xl bg-gradient-to-tr from-cyan-400 via-fuchsia-500 to-amber-400 flex items-center justify-center text-xs font-bold text-slate-950 shadow-lg"
+          >
+            LP
+          </div>
+          <div class="leading-tight">
+            <p class="text-sm font-semibold text-slate-50">LLM Probing Lab</p>
+            <p class="text-[10px] text-slate-400">
+              Layer-wise interpretability · multi-dataset dashboard
+            </p>
+          </div>
         </div>
-        <ul class="flex gap-8 text-sm md:text-base">
+
+        <ul class="flex items-center gap-6 text-sm">
           {% for endpoint, label in NAV_ITEMS %}
           <li>
             <a
@@ -43,16 +73,17 @@
       </nav>
     </header>
 
-    <main class="max-w-6xl mx-auto py-8 px-4">
+    <!-- Main content -->
+    <main class="max-w-6xl mx-auto px-4 py-6 relative z-10">
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
       <div class="space-y-2 mb-4">
         {% for category, message in messages %}
         <div
-          class="rounded-xl px-4 py-2 text-sm border
+          class="rounded-2xl px-4 py-2 text-sm border
           {% if category == 'success' %} border-emerald-500/60 bg-emerald-500/10
           {% elif category == 'danger' %} border-rose-500/60 bg-rose-500/10
-          {% else %} border-slate-600 bg-slate-800 {% endif %}"
+          {% else %} border-slate-600 bg-slate-900/80 {% endif %}"
         >
           {{ message }}
         </div>

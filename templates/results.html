@@ -1,21 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-2">Results for Run #{{ run.id }}</h1>
-<p class="text-slate-400 mb-4">
-  {{ run.dataset_name }} • {{ run.sample_size }} samples • Models:
-  {{ run.models }}
-</p>
+<section class="mb-6">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight mb-1">
+        Results · Run #{{ run.id }}
+      </h1>
+      <p class="text-slate-400 text-sm">
+        {{ run.dataset_name }} · {{ run.sample_size }} samples · Models:
+        {{ run.models }}
+      </p>
+    </div>
 
-{% if run.summary %}
-<div class="bg-slate-900/70 border border-cyan-500/40 rounded-2xl p-4 mb-6">
-  <h2 class="text-lg font-semibold mb-2 text-cyan-300">Auto Summary</h2>
-  <div class="prose prose-invert text-sm max-w-none">
-    {{ run.summary | safe | replace('\n', '<br>') | safe }}
+    <a href="{{ url_for('compare') }}" class="btn-secondary text-xs">
+      Compare models →
+    </a>
   </div>
-</div>
-{% endif %}
 
-<div class="grid md:grid-cols-2 gap-6">
+  {% if run.summary %}
+  <div
+    class="card border border-cyan-500/40 bg-gradient-to-br from-slate-950/70 via-slate-950/80 to-slate-900/90 mb-6"
+  >
+    <h2 class="text-sm font-semibold text-cyan-300 mb-2">
+      Auto-generated narrative summary
+    </h2>
+    <div class="prose prose-invert text-sm max-w-none leading-relaxed">
+      {{ run.summary | safe | replace('\n', '<br>') | safe }}
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="grid md:grid-cols-2 gap-6">
   <div class="panel">
     <h3 class="panel-title">Accuracy vs Layer</h3>
     <canvas id="accChart"></canvas>
@@ -24,11 +40,11 @@
     <h3 class="panel-title">Weighted F1 vs Layer</h3>
     <canvas id="f1Chart"></canvas>
   </div>
-  <div class="panel">
-    <h3 class="panel-title">ECE vs Layer</h3>
+  <div class="panel md:col-span-2">
+    <h3 class="panel-title">Calibration · Expected Calibration Error (ECE)</h3>
     <canvas id="eceChart"></canvas>
   </div>
-</div>
+</section>
 
 <script>
   window.addEventListener("load", () => {

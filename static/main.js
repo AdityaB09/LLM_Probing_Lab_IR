@@ -1,4 +1,3 @@
-// Global loading overlay control
 function showGlobalLoading() {
   const el = document.getElementById("global-loading");
   if (el) el.classList.remove("hidden");

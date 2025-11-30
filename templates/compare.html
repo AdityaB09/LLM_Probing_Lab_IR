@@ -1,111 +1,111 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-4">Compare Runs (Instant)</h1>
-
-<form
-  method="post"
-  id="compare-form"
-  class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 mb-8 shadow-xl space-y-4"
->
-  <div class="grid md:grid-cols-4 gap-4">
+<section class="mb-6">
+  <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
     <div>
-      <label class="label">Dataset</label>
-      <select name="dataset" class="input">
-        {% for key, meta in datasets.items() %}
-        <option value="{{ key }}">{{ meta.task_name }} ({{ key }})</option>
-        {% endfor %}
-      </select>
-      <p class="helper">Directly mapped to Kaggle datasets.</p>
-    </div>
-
-    <div>
-      <label class="label">Max samples</label>
-      <input
-        type="number"
-        name="max_samples"
-        value="{{ config.DEFAULT_MAX_SAMPLES }}"
-        min="200"
-        max="{{ config.MAX_SAMPLES_HARD_LIMIT }}"
-        class="input"
-      />
-      <p class="helper">Control speed vs. statistical stability.</p>
-    </div>
-
-    <div>
-      <label class="label">Model A</label>
-      <select name="model_a" class="input">
-        {% for m in models %}
-        <option value="{{ m }}">{{ m }}</option>
-        {% endfor %}
-      </select>
-      <p class="helper">Left-hand side in charts.</p>
-    </div>
-
-    <div>
-      <label class="label">Model B</label>
-      <select name="model_b" class="input">
-        {% for m in models %}
-        <option value="{{ m }}" {% if loop.index == 2 %}selected{% endif %}>
-          {{ m }}
-        </option>
-        {% endfor %}
-      </select>
-      <p class="helper">Right-hand side in charts.</p>
+      <h1 class="text-2xl md:text-3xl font-semibold tracking-tight mb-1">
+        Compare Models (Instant)
+      </h1>
+      <p class="text-slate-400 text-sm max-w-xl">
+        Spin up a fresh comparison: same dataset & sample size, two encoders.
+        We’ll probe every layer and overlay their curves for accuracy, F1, and
+        calibration.
+      </p>
     </div>
   </div>
 
-  <div class="flex flex-wrap items-center gap-3 justify-between pt-2">
-    <button type="submit" class="btn-primary">
-      Launch Comparison Experiment
-    </button>
+  <form
+    method="post"
+    id="compare-form"
+    class="card space-y-4 border border-slate-800/80"
+  >
+    <div class="grid md:grid-cols-4 gap-4">
+      <div>
+        <label class="label">Dataset</label>
+        <select name="dataset" class="input">
+          {% for key, meta in datasets.items() %}
+          <option value="{{ key }}">{{ meta.task_name }} ({{ key }})</option>
+          {% endfor %}
+        </select>
+        <p class="helper">Backed by Kaggle datasets in config.py.</p>
+      </div>
 
-    <div class="flex gap-2 text-xs text-slate-400">
-      <span
-        class="inline-flex items-center gap-1 rounded-full border border-cyan-500/60 px-3 py-1 bg-cyan-500/10"
-      >
-        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-        Live probing · no saved run
-      </span>
-      <span class="hidden md:inline">
-        Hidden states → logistic probes → metrics → charts in one shot.
-      </span>
+      <div>
+        <label class="label">Max samples</label>
+        <input
+          type="number"
+          name="max_samples"
+          value="{{ config.DEFAULT_MAX_SAMPLES }}"
+          min="200"
+          max="{{ config.MAX_SAMPLES_HARD_LIMIT }}"
+          class="input"
+        />
+        <p class="helper">Higher = more stable but slower.</p>
+      </div>
+
+      <div>
+        <label class="label">Model A</label>
+        <select name="model_a" class="input">
+          {% for m in models %}
+          <option value="{{ m }}">{{ m }}</option>
+          {% endfor %}
+        </select>
+        <p class="helper">Left curve in the chart.</p>
+      </div>
+
+      <div>
+        <label class="label">Model B</label>
+        <select name="model_b" class="input">
+          {% for m in models %}
+          <option value="{{ m }}" {% if loop.index == 2 %}selected{% endif %}>
+            {{ m }}
+          </option>
+          {% endfor %}
+        </select>
+        <p class="helper">Right curve in the chart.</p>
+      </div>
     </div>
-  </div>
-</form>
+
+    <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+      <button type="submit" class="btn-primary">
+        Launch Comparison Experiment
+      </button>
+
+      <div class="flex flex-wrap gap-2 text-[11px] text-slate-400">
+        <span class="pill pill-soft">
+          Live probes (not from history)
+        </span>
+        <span class="pill pill-soft">
+          Same dataset, two encoders
+        </span>
+      </div>
+    </div>
+  </form>
+</section>
 
 {% if result %}
 <section class="space-y-6">
   <div
-    class="bg-slate-900/70 border border-cyan-500/40 rounded-2xl p-4 shadow-lg"
+    class="card border border-cyan-500/40 bg-gradient-to-br from-slate-950/80 via-slate-950/90 to-slate-900/90"
   >
-    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-      <h2 class="text-lg font-semibold text-cyan-300">
-        {{ result.task_name }} ({{ result.dataset_key }})
-      </h2>
-      <p class="text-xs text-slate-400">
-        {{ result.sample_size }} samples · {{ result.model_a }} vs
-        {{ result.model_b }}
-      </p>
-    </div>
-
-    <div class="flex flex-wrap gap-2 mb-3 text-xs">
-      <span
-        class="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1 bg-slate-900/80"
-      >
-        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-        {{ result.model_a }}
-      </span>
-      <span
-        class="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1 bg-slate-900/80"
-      >
-        <span class="w-2 h-2 rounded-full bg-fuchsia-400"></span>
-        {{ result.model_b }}
-      </span>
-      <span
-        class="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1 bg-slate-900/80"
-      >
-        Layer-wise accuracy, F1 & calibration
-      </span>
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+      <div>
+        <h2 class="text-lg font-semibold text-cyan-300">
+          {{ result.task_name }} ({{ result.dataset_key }})
+        </h2>
+        <p class="text-xs text-slate-400">
+          {{ result.sample_size }} samples · {{ result.model_a }} vs
+          {{ result.model_b }}
+        </p>
+      </div>
+      <div class="flex gap-2 text-[11px] text-slate-300">
+        <span class="pill">
+          <span class="dot dot-cyan"></span>{{ result.model_a }}
+        </span>
+        <span class="pill">
+          <span class="dot dot-fuchsia"></span>{{ result.model_b }}
+        </span>
+      </div>
     </div>
 
     <div class="prose prose-invert text-sm max-w-none leading-relaxed">
@@ -113,14 +113,12 @@
     </div>
   </div>
 
-  <div class="flex flex-wrap justify-between gap-3">
-    <div class="flex items-center gap-2 text-xs text-slate-400">
-      <span class="w-3 h-3 rounded-full bg-cyan-400"></span>
-      {{ result.model_a }}
-      <span class="w-3 h-3 rounded-full bg-fuchsia-400 ml-3"></span>
-      {{ result.model_b }}
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-2 text-[11px] text-slate-400">
+      <span class="dot dot-cyan"></span>{{ result.model_a }}
+      <span class="dot dot-fuchsia ml-3"></span>{{ result.model_b }}
     </div>
-    <div class="flex gap-2 text-xs">
+    <div class="flex gap-2 text-[11px]">
       <button
         type="button"
         class="metric-chip metric-chip-active"
@@ -139,7 +137,7 @@
 
   <div class="panel">
     <h3 class="panel-title">
-      Metric vs Layer ({{ result.model_a }} vs {{ result.model_b }})
+      Metric vs Layer · {{ result.model_a }} vs {{ result.model_b }}
     </h3>
     <canvas id="compareMetricChart"></canvas>
   </div>
@@ -147,7 +145,6 @@
 
 <script>
   const cmpResult = {{ result|tojson }};
-  // fire chart rendering after DOM ready
   window.addEventListener("load", () => {
     renderInlineCompareCharts(
       cmpResult.metrics_a,
