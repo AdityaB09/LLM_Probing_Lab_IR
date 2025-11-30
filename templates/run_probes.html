@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Run Probes</h1>
+
+<form
+  method="post"
+  id="run-probes-form"
+  class="space-y-6 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl"
+>
+  <div class="grid md:grid-cols-3 gap-4">
+    <div>
+      <label class="label">Dataset</label>
+      <select name="dataset" class="input">
+        {% for key, meta in datasets.items() %}
+        <option value="{{ key }}">{{ meta.task_name }} ({{ key }})</option>
+        {% endfor %}
+      </select>
+      <p class="helper">
+        These map directly to Kaggle datasets configured in <code>config.py</code>.
+      </p>
+    </div>
+
+    <div>
+      <label class="label">Max samples</label>
+      <input
+        type="number"
+        name="max_samples"
+        value="{{ default_max_samples }}"
+        min="200"
+        max="{{ config.MAX_SAMPLES_HARD_LIMIT }}"
+        class="input"
+      />
+      <p class="helper">You can dial this up or down per experiment.</p>
+    </div>
+
+    <div>
+      <label class="label">Models</label>
+      <select name="models" class="input" multiple size="4">
+        {% for m in models %}
+        <option value="{{ m }}">{{ m }}</option>
+        {% endfor %}
+      </select>
+      <p class="helper">Hold Ctrl/Cmd to select multiple encoders.</p>
+    </div>
+  </div>
+
+  <button type="submit" class="btn-primary w-full md:w-auto">
+    Launch Probing Experiment
+  </button>
+</form>
+
+<p class="text-slate-400 text-sm mt-4">
+  When you hit <b>Launch</b>, we will download the dataset via Kaggle (if needed),
+  compute hidden states for each layer, train logistic probes, and store all metrics
+  + a natural-language summary. A full-screen animated overlay will show progress.
+</p>
+{% endblock %}

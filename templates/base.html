@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>LLM Probing Lab</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <!-- Loading overlay -->
+    <div
+      id="global-loading"
+      class="fixed inset-0 bg-slate-950/80 z-50 flex flex-col items-center justify-center hidden"
+    >
+      <div class="loader mb-4"></div>
+      <p class="text-cyan-300 text-lg font-semibold animate-pulse">
+        Probes are inspecting transformer layers...
+      </p>
+      <p class="text-slate-400 text-sm mt-2">
+        Crunching embeddings, training logistic heads, calibrating ECE.
+      </p>
+    </div>
+
+    <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-40">
+      <nav class="max-w-6xl mx-auto flex items-center justify-between py-3 px-4">
+        <div class="text-cyan-300 font-semibold tracking-wide">
+          LLM Probing Lab
+        </div>
+        <ul class="flex gap-8 text-sm md:text-base">
+          {% for endpoint, label in NAV_ITEMS %}
+          <li>
+            <a
+              href="{{ url_for(endpoint) }}"
+              class="nav-link {% if request.endpoint == endpoint %}nav-link-active{% endif %}"
+            >
+              {{ label }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+    </header>
+
+    <main class="max-w-6xl mx-auto py-8 px-4">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="space-y-2 mb-4">
+        {% for category, message in messages %}
+        <div
+          class="rounded-xl px-4 py-2 text-sm border
+          {% if category == 'success' %} border-emerald-500/60 bg-emerald-500/10
+          {% elif category == 'danger' %} border-rose-500/60 bg-rose-500/10
+          {% else %} border-slate-600 bg-slate-800 {% endif %}"
+        >
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <script src="{{ url_for('static', filename='charts.js') }}"></script>
+  </body>
+</html>

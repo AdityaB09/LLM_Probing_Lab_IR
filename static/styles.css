@@ -1,0 +1,107 @@
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+}
+
+/* nav */
+.nav-link {
+  @apply text-cyan-300/80 hover:text-cyan-200 transition-all;
+  position: relative;
+}
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -0.35rem;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(to right, #22d3ee, #0ea5e9);
+  transition: width 0.2s ease-out;
+}
+.nav-link:hover::after {
+  width: 100%;
+}
+.nav-link-active {
+  color: #22d3ee;
+}
+.nav-link-active::after {
+  width: 100%;
+}
+
+/* reusable components */
+.stat-card {
+  @apply bg-slate-900/70 border border-slate-800 rounded-2xl p-4 shadow-lg;
+}
+.stat-label {
+  @apply text-xs uppercase tracking-wide text-slate-400;
+}
+.stat-value {
+  @apply text-2xl font-semibold text-cyan-300;
+}
+.stat-sub {
+  @apply text-xs text-slate-400 mt-1;
+}
+
+.sample-card {
+  @apply bg-slate-900/70 border border-slate-800 rounded-xl p-3;
+}
+
+.table-basic {
+  @apply w-full text-sm border-collapse;
+}
+.table-basic thead {
+  @apply bg-slate-900/80 text-slate-300;
+}
+.table-basic th,
+.table-basic td {
+  @apply border border-slate-800 px-3 py-2;
+}
+
+.panel {
+  @apply bg-slate-900/70 border border-slate-800 rounded-2xl p-4 shadow-lg;
+}
+.panel-title {
+  @apply text-sm font-semibold text-slate-200 mb-3;
+}
+
+.label {
+  @apply block text-xs font-medium text-slate-300 mb-1;
+}
+.input {
+  @apply w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2
+  text-sm text-slate-100 placeholder-slate-500 focus:outline-none
+  focus:ring-2 focus:ring-cyan-500/70 focus:border-cyan-400;
+}
+.helper {
+  @apply text-xs text-slate-500 mt-1;
+}
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-2xl bg-cyan-500
+  hover:bg-cyan-400 text-slate-950 font-semibold px-4 py-2 text-sm
+  shadow-lg shadow-cyan-500/30 transition-all;
+}
+
+/* loader */
+.loader {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  border: 4px solid rgba(34, 211, 238, 0.25);
+  border-top-color: #22d3ee;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.metric-chip {
+  @apply inline-flex items-center justify-center rounded-full border border-slate-600
+  px-3 py-1 text-xs text-slate-300 bg-slate-900/60 cursor-pointer
+  hover:border-cyan-500 hover:text-cyan-200 transition-all;
+}
+
+.metric-chip-active {
+  @apply border-cyan-500 bg-cyan-500/10 text-cyan-200;
+}

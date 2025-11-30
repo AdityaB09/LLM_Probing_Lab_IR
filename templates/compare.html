@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Compare Runs (Instant)</h1>
+
+<form
+  method="post"
+  id="compare-form"
+  class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 mb-8 shadow-xl space-y-4"
+>
+  <div class="grid md:grid-cols-4 gap-4">
+    <div>
+      <label class="label">Dataset</label>
+      <select name="dataset" class="input">
+        {% for key, meta in datasets.items() %}
+        <option value="{{ key }}">{{ meta.task_name }} ({{ key }})</option>
+        {% endfor %}
+      </select>
+      <p class="helper">Directly mapped to Kaggle datasets.</p>
+    </div>
+
+    <div>
+      <label class="label">Max samples</label>
+      <input
+        type="number"
+        name="max_samples"
+        value="{{ config.DEFAULT_MAX_SAMPLES }}"
+        min="200"
+        max="{{ config.MAX_SAMPLES_HARD_LIMIT }}"
+        class="input"
+      />
+      <p class="helper">Control speed vs. statistical stability.</p>
+    </div>
+
+    <div>
+      <label class="label">Model A</label>
+      <select name="model_a" class="input">
+        {% for m in models %}
+        <option value="{{ m }}">{{ m }}</option>
+        {% endfor %}
+      </select>
+      <p class="helper">Left-hand side in charts.</p>
+    </div>
+
+    <div>
+      <label class="label">Model B</label>
+      <select name="model_b" class="input">
+        {% for m in models %}
+        <option value="{{ m }}" {% if loop.index == 2 %}selected{% endif %}>
+          {{ m }}
+        </option>
+        {% endfor %}
+      </select>
+      <p class="helper">Right-hand side in charts.</p>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3 justify-between pt-2">
+    <button type="submit" class="btn-primary">
+      Launch Comparison Experiment
+    </button>
+
+    <div class="flex gap-2 text-xs text-slate-400">
+      <span
+        class="inline-flex items-center gap-1 rounded-full border border-cyan-500/60 px-3 py-1 bg-cyan-500/10"
+      >
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+        Live probing · no saved run
+      </span>
+      <span class="hidden md:inline">
+        Hidden states → logistic probes → metrics → charts in one shot.
+      </span>
+    </div>
+  </div>
+</form>
+
+{% if result %}
+<section class="space-y-6">
+  <div
+    class="bg-slate-900/70 border border-cyan-500/40 rounded-2xl p-4 shadow-lg"
+  >
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+      <h2 class="text-lg font-semibold text-cyan-300">
+        {{ result.task_name }} ({{ result.dataset_key }})
+      </h2>
+      <p class="text-xs text-slate-400">
+        {{ result.sample_size }} samples · {{ result.model_a }} vs
+        {{ result.model_b }}
+      </p>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-3 text-xs">
+      <span
+        class="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1 bg-slate-900/80"
+      >
+        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+        {{ result.model_a }}
+      </span>
+      <span
+        class="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1 bg-slate-900/80"
+      >
+        <span class="w-2 h-2 rounded-full bg-fuchsia-400"></span>
+        {{ result.model_b }}
+      </span>
+      <span
+        class="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1 bg-slate-900/80"
+      >
+        Layer-wise accuracy, F1 & calibration
+      </span>
+    </div>
+
+    <div class="prose prose-invert text-sm max-w-none leading-relaxed">
+      {{ result.summary | safe | replace('\n', '<br>') | safe }}
+    </div>
+  </div>
+
+  <div class="flex flex-wrap justify-between gap-3">
+    <div class="flex items-center gap-2 text-xs text-slate-400">
+      <span class="w-3 h-3 rounded-full bg-cyan-400"></span>
+      {{ result.model_a }}
+      <span class="w-3 h-3 rounded-full bg-fuchsia-400 ml-3"></span>
+      {{ result.model_b }}
+    </div>
+    <div class="flex gap-2 text-xs">
+      <button
+        type="button"
+        class="metric-chip metric-chip-active"
+        data-metric="acc"
+      >
+        Accuracy
+      </button>
+      <button type="button" class="metric-chip" data-metric="f1">
+        Weighted F1
+      </button>
+      <button type="button" class="metric-chip" data-metric="ece">
+        Calibration (ECE)
+      </button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3 class="panel-title">
+      Metric vs Layer ({{ result.model_a }} vs {{ result.model_b }})
+    </h3>
+    <canvas id="compareMetricChart"></canvas>
+  </div>
+</section>
+
+<script>
+  const cmpResult = {{ result|tojson }};
+  // fire chart rendering after DOM ready
+  window.addEventListener("load", () => {
+    renderInlineCompareCharts(
+      cmpResult.metrics_a,
+      cmpResult.metrics_b,
+      cmpResult.model_a,
+      cmpResult.model_b
+    );
+  });
+</script>
+{% endif %}
+{% endblock %}
