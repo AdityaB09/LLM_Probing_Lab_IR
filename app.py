@@ -1,47 +1,32 @@
-import os
-import random
-
 from flask import (
     Flask,
     render_template,
     request,
     redirect,
     url_for,
-    flash,
     jsonify,
+    flash,
 )
-
-import numpy as np
-from sklearn.linear_model import LogisticRegression
-import torch
-from transformers import AutoTokenizer, AutoModel
-
 from config import Config
+from storage import init_db, save_run, list_runs, get_run, get_run_metrics
+from summarizer import summarize_single_run, summarize_inline_comparison, summarize_multi_run_insights
 from probing_core import load_dataset, run_layerwise_probe
-from storage import (
-    init_db,
-    save_run,
-    list_runs,
-    get_run,
-    get_run_metrics,
-)
-from summarizer import (
-    summarize_single_run,
-    summarize_inline_comparison,
-    summarize_multi_run_insights,
-)
-from attribution import compute_token_attributions, DEVICE
-
+from transformers import AutoTokenizer, AutoModel
+import torch
+import numpy as np
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from sklearn.linear_model import LogisticRegression
+# ----------------------------------------------------
+# APP + DB
+# ----------------------------------------------------
 
 app = Flask(__name__)
 app.config.from_object(Config)
-
-# Initialize DB on startup
 init_db()
 
-
-# ---------- helpers ----------
-
+# ----------------------------------------------------
+# NAV BAR
+# ----------------------------------------------------
 
 @app.context_processor
 def inject_globals():
@@ -57,12 +42,6 @@ def inject_globals():
         ],
         "config": app.config,
     }
-
-
-def _get_dataset_meta(dataset_key: str):
-    meta = Config.KAGGLE_DATASETS.get(dataset_key, {})
-    task_name = meta.get("task_name", dataset_key)
-    return meta, task_name
 
 
 def _train_probe_and_predict(texts, labels, info, model_name, text_query, max_train=400):
@@ -144,122 +123,96 @@ def _train_probe_and_predict(texts, labels, info, model_name, text_query, max_tr
         "pairs": pairs,
     }
 
-
-# ---------- routes ----------
-
+# ----------------------------------------------------
+# PAGES
+# ----------------------------------------------------
 
 @app.route("/")
-@app.route("/overview")
 def overview():
     runs = list_runs(limit=5)
-    total_runs = len(list_runs(limit=None))
-    datasets = Config.KAGGLE_DATASETS
-    models = Config.TRANSFORMER_MODELS
+    total_runs = len(list_runs(limit=1000))
     return render_template(
         "overview.html",
         runs=runs,
         total_runs=total_runs,
-        datasets=datasets,
-        models=models,
+        datasets=Config.KAGGLE_DATASETS,
+        models=Config.TRANSFORMER_MODELS,
     )
 
 
 @app.route("/explorer", methods=["GET", "POST"])
 def explorer():
-    datasets = Config.KAGGLE_DATASETS
-    default_dataset = next(iter(datasets.keys()))
-    dataset_key = default_dataset
-    max_samples = Config.DEFAULT_MAX_SAMPLES
-
-    if request.method == "POST":
-        dataset_key = request.form.get("dataset") or default_dataset
-        max_samples = int(
-            request.form.get("max_samples") or Config.DEFAULT_MAX_SAMPLES
-        )
+    dataset_key = request.form.get("dataset") or "amazon_reviews"
+    max_samples = int(request.form.get("max_samples") or Config.DEFAULT_MAX_SAMPLES)
 
     texts, labels, info = load_dataset(dataset_key, max_samples)
-    preview = list(zip(texts[:8], labels[:8]))
+    sample_preview = list(zip(texts[:5], labels[:5]))
 
     return render_template(
         "explorer.html",
-        datasets=datasets,
         dataset_key=dataset_key,
-        max_samples=max_samples,
         info=info,
-        preview=preview,
+        preview=sample_preview,
+        datasets=Config.KAGGLE_DATASETS,
+        max_samples=max_samples,
     )
 
 
+# ----------------------------------------------------
+# RUN PROBES (unchanged)
+# ----------------------------------------------------
+
 @app.route("/run-probes", methods=["GET", "POST"])
 def run_probes():
-    datasets = Config.KAGGLE_DATASETS
-    models = Config.TRANSFORMER_MODELS
-
     if request.method == "GET":
         return render_template(
             "run_probes.html",
-            datasets=datasets,
-            models=models,
+            datasets=Config.KAGGLE_DATASETS,
+            models=Config.TRANSFORMER_MODELS,
             default_max_samples=Config.DEFAULT_MAX_SAMPLES,
         )
 
     dataset_key = request.form.get("dataset")
-    model_names = request.form.getlist("models")
-    max_samples = int(
-        request.form.get("max_samples") or Config.DEFAULT_MAX_SAMPLES
-    )
+    max_samples = int(request.form.get("max_samples") or Config.DEFAULT_MAX_SAMPLES)
+    model_names = request.form.getlist("models") or [Config.TRANSFORMER_MODELS[0]]
 
-    if not dataset_key or dataset_key not in datasets:
-        flash("Please select a valid dataset.", "danger")
-        return redirect(url_for("run_probes"))
+    texts, labels, info = load_dataset(dataset_key, max_samples)
 
-    if not model_names:
-        flash("Please select at least one model.", "danger")
-        return redirect(url_for("run_probes"))
+    all_metrics = {}
+    for m in model_names:
+        metrics = run_layerwise_probe(m, texts, labels)
+        all_metrics[m] = metrics
 
-    meta, task_name = _get_dataset_meta(dataset_key)
-
-    metrics, info = run_layerwise_probe(
-        dataset_key=dataset_key,
-        max_samples=max_samples,
-        model_names=model_names,
-    )
-
-    summary = summarize_single_run(
-        dataset_name=task_name,
-        task_name=info.get("task_name", task_name),
-        sample_size=info.get("num_samples", max_samples),
-        model_metrics=metrics,
+    summary_md = summarize_single_run(
+        dataset_name=dataset_key,
+        task_name=info["task_name"],
+        sample_size=info["num_samples"],
+        model_metrics=all_metrics,
     )
 
     run_id = save_run(
         dataset_key=dataset_key,
-        dataset_name=task_name,
+        dataset_name=info["task_name"],
         models=model_names,
-        sample_size=max_samples,
+        sample_size=info["num_samples"],
         mode="single",
-        summary=summary,
-        metrics=metrics,
+        summary=summary_md,
+        metrics=all_metrics,
     )
 
-    flash("Probing run completed and saved.", "success")
+    flash("Probe run completed!", "success")
     return redirect(url_for("results", run_id=run_id))
 
 
 @app.route("/results/<int:run_id>")
 def results(run_id):
     run = get_run(run_id)
-    if not run:
-        flash("Run not found.", "danger")
+    if run is None:
+        flash("Run not found", "danger")
         return redirect(url_for("overview"))
 
-    return render_template("results.html", run=run)
-
-
-@app.route("/api/runs/<int:run_id>/metrics")
-def api_run_metrics(run_id):
     metrics = get_run_metrics(run_id)
-    return jsonify(metrics)
+    return render_template("results.html", run=run, metrics=metrics)
 
 
 @app.route("/history")
@@ -268,73 +221,156 @@ def history():
     return render_template("history.html", runs=runs)
 
 
+# ----------------------------------------------------
+# COMPARE (unchanged)
+# ----------------------------------------------------
+
 @app.route("/compare", methods=["GET", "POST"])
 def compare():
-    datasets = Config.KAGGLE_DATASETS
-    models = Config.TRANSFORMER_MODELS
+    result = None
 
-    if request.method == "GET":
-        return render_template(
-            "compare.html",
-            datasets=datasets,
-            models=models,
-            result=None,
+    if request.method == "POST":
+        dataset_key = request.form.get("dataset")
+        max_samples = int(request.form.get("max_samples") or Config.DEFAULT_MAX_SAMPLES)
+        model_a = request.form.get("model_a")
+        model_b = request.form.get("model_b")
+
+        if not dataset_key or not model_a or not model_b:
+            flash("Please choose a dataset and two models.", "danger")
+            return redirect(url_for("compare"))
+
+        if model_a == model_b:
+            flash("Please pick two different models.", "danger")
+            return redirect(url_for("compare"))
+
+        texts, labels, info = load_dataset(dataset_key, max_samples)
+
+        metrics_a = run_layerwise_probe(model_a, texts, labels)
+        metrics_b = run_layerwise_probe(model_b, texts, labels)
+
+        summary = summarize_inline_comparison(
+            dataset_name=dataset_key,
+            task_name=info["task_name"],
+            sample_size=info["num_samples"],
+            model_a=model_a,
+            model_b=model_b,
+            metrics_a=metrics_a,
+            metrics_b=metrics_b,
         )
 
-    dataset_key = request.form.get("dataset")
-    model_a = request.form.get("model_a")
-    model_b = request.form.get("model_b")
-    max_samples = int(
-        request.form.get("max_samples") or Config.DEFAULT_MAX_SAMPLES
-    )
-
-    if not (dataset_key and model_a and model_b):
-        flash("Please select dataset and both models.", "danger")
-        return redirect(url_for("compare"))
-
-    if model_a == model_b:
-        flash("Pick two different models to compare.", "danger")
-        return redirect(url_for("compare"))
-
-    meta, task_name = _get_dataset_meta(dataset_key)
-
-    metrics_all, info = run_layerwise_probe(
-        dataset_key=dataset_key,
-        max_samples=max_samples,
-        model_names=[model_a, model_b],
-    )
-
-    metrics_a = metrics_all[model_a]
-    metrics_b = metrics_all[model_b]
-
-    summary = summarize_inline_comparison(
-        dataset_name=task_name,
-        task_name=info.get("task_name", task_name),
-        sample_size=info.get("num_samples", max_samples),
-        model_a=model_a,
-        model_b=model_b,
-        metrics_a=metrics_a,
-        metrics_b=metrics_b,
-    )
-
-    result = {
-        "dataset_key": dataset_key,
-        "task_name": info.get("task_name", task_name),
-        "sample_size": info.get("num_samples", max_samples),
-        "model_a": model_a,
-        "model_b": model_b,
-        "summary": summary,
-        "metrics_a": metrics_a,
-        "metrics_b": metrics_b,
-    }
+        result = {
+            "dataset_key": dataset_key,
+            "task_name": info["task_name"],
+            "sample_size": info["num_samples"],
+            "model_a": model_a,
+            "model_b": model_b,
+            "metrics_a": metrics_a,
+            "metrics_b": metrics_b,
+            "summary": summary,
+        }
 
     return render_template(
         "compare.html",
-        datasets=datasets,
-        models=models,
+        datasets=Config.KAGGLE_DATASETS,
+        models=Config.TRANSFORMER_MODELS,
         result=result,
     )
 
+
+# ----------------------------------------------------
+# CHART API
+# ----------------------------------------------------
+
+@app.route("/api/run/<int:run_id>/metrics")
+def api_run_metrics(run_id):
+    metrics = get_run_metrics(run_id)
+    return jsonify(metrics)
+
+
+# ----------------------------------------------------
+# HELPER — normalize attribution format
+# ----------------------------------------------------
+
+def normalize_attrib(tokens, raw_layers):
+    """
+    Converts variable backend output to strict frontend format:
+    {
+        "tokens": [...],
+        "layers": {"0":[...], "1":[...], ...}
+    }
+    """
+
+    layers = {}
+
+    # Case: raw_layers = list of per-layer lists
+    if isinstance(raw_layers, list) and isinstance(raw_layers[0], list):
+        for i, scores in enumerate(raw_layers):
+            layers[str(i)] = scores
+        return {"tokens": tokens, "layers": layers}
+
+    return {"tokens": tokens, "layers": {}}
+
+
+# ----------------------------------------------------
+# ATTRIBUTION ENGINE — activation, attention, grad
+# ----------------------------------------------------
+
+def compute_attributions(method, model, tokenizer, text):
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
+    outputs = model(**inputs, output_hidden_states=True, output_attentions=True)
+
+    tokens = tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
+
+    # ------------------------------
+    # Activation Energy
+    # ------------------------------
+    if method == "activation":
+        norms = [
+            torch.norm(h[0], dim=-1).detach().tolist()
+            for h in outputs.hidden_states
+        ]
+        return normalize_attrib(tokens, norms)
+
+    # ------------------------------
+    # Attention Rollout
+    # ------------------------------
+    if method == "attention":
+        rollout = []
+        for layer in outputs.attentions:
+            a = layer[0].mean(0).detach().numpy()
+            rollout.append(a.mean(axis=0).tolist())
+        return normalize_attrib(tokens, rollout)
+
+    # ------------------------------
+    # Grad × Input
+    # ------------------------------
+    if method == "grad":
+        model.zero_grad()
+        probs = outputs.logits.softmax(dim=-1)[0]
+        top = probs.max()
+        top.backward()
+
+        # fix gradient retrieval
+        grads = []
+        for h in outputs.hidden_states:
+            if h.requires_grad:
+                grads.append(h.grad.abs().mean(-1).detach().tolist())
+            else:
+                grads.append([0.0] * len(tokens))
+
+        return normalize_attrib(tokens, grads)
+
+    return normalize_attrib(tokens, [])
+
+
+# ----------------------------------------------------
+# INTERPRET PAGE
+# ----------------------------------------------------
+
+# ----------------------------------------------------
+# INTERPRET (fixed)
+# ----------------------------------------------------
+from attribution import compute_token_attributions, DEVICE  # use your file
 
 @app.route("/interpret", methods=["GET", "POST"])
 def interpret():
@@ -515,6 +551,9 @@ def insights_ai():
     )
 
 
+# ----------------------------------------------------
+# MAIN
+# ----------------------------------------------------
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="127.0.0.1", port=port, debug=True)
+    app.run(debug=True)
