@@ -162,3 +162,86 @@ function renderInlineCompareCharts(metricsA, metricsB, modelA, modelB) {
     if (typeof hideGlobalLoading === "function") hideGlobalLoading();
   }, 300);
 }
+
+function renderInsightsCharts(data) {
+  if (!data) return;
+
+  const metric = data.metric;
+  const models = data.models || [];
+  const layers = data.layers || [];
+
+  const metricLabel =
+    metric === "accuracy"
+      ? "Accuracy"
+      : metric === "f1"
+      ? "Weighted F1"
+      : "ECE (lower is better)";
+
+  // Model/dataset bar chart
+  const mCtx = document.getElementById("insightsModelChart");
+  if (mCtx && models.length) {
+    const labels = models.map((m) => `${m.model}\n${m.dataset}`);
+    const values = models.map((m) => m.best);
+
+    new Chart(mCtx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: `Best ${metricLabel}`,
+            data: values,
+            backgroundColor: "#22d3ee66",
+            borderColor: "#22d3ee",
+            borderWidth: 1.5,
+          },
+        ],
+      },
+      options: {
+        plugins: {
+          legend: { display: false },
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: "#9ca3af",
+              font: { size: 10 },
+            },
+          },
+          y: {
+            ticks: {
+              color: "#9ca3af",
+              font: { size: 10 },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  // Layer signature line chart
+  const lCtx = document.getElementById("insightsLayerChart");
+  if (lCtx && layers.length) {
+    const labels = layers.map((l) => l.layer);
+    const values = layers.map((l) => l.mean);
+
+    new Chart(lCtx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: `Mean ${metricLabel}`,
+            data: values,
+            borderColor: "#a855f7",
+            backgroundColor: "#a855f766",
+            tension: 0.25,
+          },
+        ],
+      },
+      options: baseLineOptions("Layer index", metricLabel, null, null),
+    });
+  }
+}
+
+window.renderInsightsCharts = renderInsightsCharts;

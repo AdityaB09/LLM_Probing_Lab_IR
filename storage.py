@@ -15,7 +15,14 @@ def get_conn():
     return conn
 
 
+def _row_to_dict(row):
+    if row is None:
+        return None
+    return {k: row[k] for k in row.keys()}
+
+
 def init_db():
+    """Create tables if they don't exist."""
     conn = get_conn()
     cur = conn.cursor()
 
@@ -56,12 +63,17 @@ def init_db():
 
 def save_run(dataset_key, dataset_name, models, sample_size, mode, summary, metrics):
     """
-    metrics: dict[model_name] -> list[dict(layer_index, accuracy, f1, ece, extra)]
+    Insert a run + its layer metrics.
+
+    metrics: dict[model_name] -> list[dict(
+        layer_index, accuracy, f1, ece, extra
+    )]
     """
     conn = get_conn()
     cur = conn.cursor()
 
-    created_at = datetime.utcnow().isoformat()
+    created_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+
     cur.execute(
         """
         INSERT INTO runs (created_at, dataset_key, dataset_name, models,
@@ -92,9 +104,9 @@ def save_run(dataset_key, dataset_name, models, sample_size, mode, summary, metr
                     run_id,
                     model_name,
                     layer["layer_index"],
-                    layer["accuracy"],
-                    layer["f1"],
-                    layer["ece"],
+                    layer.get("accuracy"),
+                    layer.get("f1"),
+                    layer.get("ece"),
                     json.dumps(layer.get("extra", {})),
                 ),
             )
@@ -107,12 +119,17 @@ def save_run(dataset_key, dataset_name, models, sample_size, mode, summary, metr
 def list_runs(limit=50):
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT * FROM runs ORDER BY datetime(created_at) DESC LIMIT ?", (limit,)
-    )
+
+    if limit is None:
+        cur.execute("SELECT * FROM runs ORDER BY datetime(created_at) DESC")
+    else:
+        cur.execute(
+            "SELECT * FROM runs ORDER BY datetime(created_at) DESC LIMIT ?", (limit,)
+        )
+
     rows = cur.fetchall()
     conn.close()
-    return rows
+    return [_row_to_dict(r) for r in rows]
 
 
 def get_run(run_id):
@@ -121,7 +138,7 @@ def get_run(run_id):
     cur.execute("SELECT * FROM runs WHERE id = ?", (run_id,))
     row = cur.fetchone()
     conn.close()
-    return row
+    return _row_to_dict(row)
 
 
 def get_run_metrics(run_id):

@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="mb-6">
+  <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-semibold tracking-tight mb-1">
+        Interpret Model
+      </h1>
+      <p class="text-slate-400 text-sm max-w-xl">
+        Peek inside a transformer: pick a dataset example or paste your own
+        text, then explore token-level saliency across layers using activation
+        energy, attention rollout, or Grad × Input.
+      </p>
+    </div>
+  </div>
+
+  <form
+    method="post"
+    class="card space-y-5 border border-slate-800/80 mb-6"
+  >
+    <div class="grid md:grid-cols-4 gap-4">
+      <div>
+        <label class="label">Dataset (for examples)</label>
+        <select name="dataset" class="input">
+          {% for key, meta in datasets.items() %}
+          <option value="{{ key }}">{{ meta.task_name }} ({{ key }})</option>
+          {% endfor %}
+        </select>
+        <p class="helper">
+          Used only if you don't paste custom text below.
+        </p>
+      </div>
+
+      <div>
+        <label class="label">Max samples</label>
+        <input
+          type="number"
+          name="max_samples"
+          value="{{ config.DEFAULT_MAX_SAMPLES }}"
+          min="200"
+          max="{{ config.MAX_SAMPLES_HARD_LIMIT }}"
+          class="input"
+        />
+        <p class="helper">Controls the pool of examples.</p>
+      </div>
+
+      <div>
+        <label class="label">Model</label>
+        <select name="model" class="input">
+          {% for m in models %}
+          <option value="{{ m }}">{{ m }}</option>
+          {% endfor %}
+        </select>
+        <p class="helper">Encoder family to inspect.</p>
+      </div>
+
+      <div>
+        <label class="label">Attribution method</label>
+        <select name="method" class="input">
+          {% for key, label in methods.items() %}
+          <option value="{{ key }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="helper">
+          Activation norm, attention rollout, or Grad × Input.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-[minmax(0,0.55fr)_minmax(0,0.45fr)] gap-4">
+      <div>
+        <label class="label">Custom text (Live API mode)</label>
+        <textarea
+          name="custom_text"
+          rows="4"
+          class="input"
+          placeholder="Paste any sentence or short paragraph to inspect…
+If left empty, we'll grab a shuffled example from the chosen dataset."
+        ></textarea>
+        <p class="helper">
+          This bypasses the dataset example and feeds your text directly into
+          the encoder.
+        </p>
+      </div>
+
+      <div>
+        <label class="label">Example index (if using dataset)</label>
+        <input
+          type="number"
+          name="sample_idx"
+          value="{{ meta.sample_idx if meta else 0 }}"
+          min="0"
+          class="input"
+        />
+        <p class="helper">
+          0-based index into the shuffled dataset slice (after max-sample cap).
+        </p>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center gap-3">
+      <button type="submit" class="btn-primary">
+        Generate Token Heatmap
+      </button>
+      <p class="text-[11px] text-slate-400">
+        Behind the scenes we compute hidden states, attentions and per-token
+        scores, then render them as an interactive heatmap.
+      </p>
+    </div>
+  </form>
+</section>
+
+{% if attribution and meta %}
+<section class="space-y-4">
+  <div class="card border border-cyan-500/40">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+      <div>
+        <p class="text-xs uppercase tracking-[0.16em] text-slate-400 mb-1">
+          Selected context
+        </p>
+        <p class="text-sm text-slate-200">
+          {% if meta.dataset_key %}
+          {{ meta.task_name }} · model
+          <span class="font-semibold">{{ meta.model_name }}</span> · sample
+          #{{ meta.sample_idx }}
+          {% else %}
+          Custom text · model
+          <span class="font-semibold">{{ meta.model_name }}</span>
+          {% endif %}
+        </p>
+      </div>
+      <div class="text-xs text-slate-400">
+        Method:
+        <span class="pill">
+          {{ meta.method_readable }}
+        </span>
+      </div>
+    </div>
+    <p class="text-xs text-slate-400 mb-2">Raw text</p>
+    <p class="text-sm text-slate-100 leading-relaxed">
+      {{ meta.raw_text }}
+    </p>
+    {% if prediction %}
+  <div class="mt-3 flex flex-col gap-1 text-xs text-slate-300">
+    <div>
+      Predicted class:
+      <span class="font-semibold">{{ prediction.pred_label }}</span>
+    </div>
+    <div class="flex flex-wrap gap-1">
+      {% for name, prob in prediction.pairs %}
+      <span class="pill pill-soft">
+        {{ name }}: {{ '%.1f'|format(prob * 100) }}%
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+  </div>
+
+  <div class="panel space-y-3">
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <h2 class="panel-title m-0">Token-level heatmap</h2>
+        <span class="pill pill-soft">
+          <span class="dot dot-cyan"></span> higher score = more importance
+        </span>
+      </div>
+      <div class="flex items-center gap-3 text-xs text-slate-400">
+        <span id="layer-label" class="font-mono text-cyan-300">Layer</span>
+        <input
+          id="layer-slider"
+          type="range"
+          min="0"
+          max="12"
+          value="0"
+          class="w-40 accent-cyan-400"
+        />
+      </div>
+    </div>
+
+    <div
+      id="token-heatmap"
+      class="flex flex-wrap gap-1.5 bg-slate-950/70 border border-slate-800 rounded-2xl px-3 py-3 text-sm leading-relaxed"
+    ></div>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='interpret.js') }}"></script>
+<script>
+  const attributionData = {{ attribution | tojson }};
+  window.addEventListener("load", () => {
+    setupTokenHeatmap(attributionData);
+  });
+</script>
+{% endif %}
+{% endblock %}
