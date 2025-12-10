@@ -107,6 +107,24 @@ If left empty, we'll grab a shuffled example from the chosen dataset."
         scores, then render them as an interactive heatmap.
       </p>
     </div>
+    <script>
+document.querySelector("form").addEventListener("submit", () => {
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = 0;
+    overlay.style.left = 0;
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.background = "rgba(0,0,0,0.6)";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.zIndex = 9999;
+    overlay.innerHTML = `<div class="spinner"></div>`;
+    document.body.appendChild(overlay);
+});
+</script>
+
   </form>
 </section>
 
@@ -193,5 +211,7 @@ If left empty, we'll grab a shuffled example from the chosen dataset."
     setupTokenHeatmap(attributionData);
   });
 </script>
+
+
 {% endif %}
 {% endblock %}
