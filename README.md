@@ -56,6 +56,11 @@ Navigate into folder:
 cd llm_probing_lab
 ```
 
+All datasets required for probing are already included in the datasets/ directory.
+No Kaggle account, API token, or external download is required.
+Simply unzip the project and run the backend + frontend as described.
+
+
 ---
 
 ### Step 2 — Create a Python Virtual Environment
