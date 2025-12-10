@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import re
-import bz2  # handle .bz2 archives
+import bz2  
 
 import numpy as np
 import pandas as pd
@@ -44,7 +44,7 @@ def ensure_kaggle_download(dataset_key):
     if exit_code != 0:
         raise RuntimeError("Kaggle download failed. Check API key and slug.")
 
-    # Special handling for Amazon reviews (train.ft.txt / .bz2)
+    
     if dataset_key == "amazon_reviews":
         candidates = list(ds_dir.glob("train.ft*"))
         if not candidates:
@@ -67,7 +67,7 @@ def ensure_kaggle_download(dataset_key):
             f_out.write(f_in.read())
         return out_path
 
-    # Other datasets: expect the configured file, but be forgiving
+    
     if not target_file.exists():
         wildcard = list(ds_dir.glob(meta["file"]))
         if wildcard:
@@ -98,7 +98,7 @@ def load_dataset(dataset_key, max_samples):
         df[meta["text_col"]] = df[meta["text_col"]].map(clean_text)
 
     elif dataset_key == "fake_news":
-        # Fake.csv + True.csv -> 0/1 labels
+    
         fake_path = file_path
         true_path = file_path.parent / "True.csv"
         if not true_path.exists():
@@ -123,7 +123,7 @@ def load_dataset(dataset_key, max_samples):
         meta = {**meta, "text_col": meta_text_col, "label_col": meta_label_col}
 
     elif dataset_key == "amazon_reviews":
-        # fastText format; use errors='ignore' to avoid UnicodeDecodeError
+     
         texts = []
         labels = []
         with open(file_path, encoding="utf-8", errors="ignore") as f:
@@ -135,7 +135,7 @@ def load_dataset(dataset_key, max_samples):
                 if len(parts) != 2:
                     continue
                 label_str, text = parts
-                # __label__1 or __label__2 -> 0/1
+                
                 label = 1 if "2" in label_str else 0
                 texts.append(clean_text(text))
                 labels.append(label)
@@ -150,7 +150,7 @@ def load_dataset(dataset_key, max_samples):
     else:
         raise ValueError(f"Unknown dataset {dataset_key}")
 
-    # Shuffle & sample
+ 
     df = df.dropna().sample(frac=1.0, random_state=42).reset_index(drop=True)
     max_samples = min(max_samples, Config.MAX_SAMPLES_HARD_LIMIT, len(df))
     df = df.iloc[:max_samples]

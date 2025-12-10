@@ -17,7 +17,7 @@
     <meta charset="utf-8" />
     <title>LLM Probing Lab</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Tailwind CDN for utility classes -->
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       rel="stylesheet"
@@ -26,7 +26,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
   <body class="bg-slate-950 text-slate-50 min-h-screen">
-    <!-- gradient background glow -->
+    
     <div
       class="pointer-events-none fixed inset-0 opacity-60 mix-blend-screen"
       style="
@@ -36,7 +36,7 @@
       "
     ></div>
 
-    <!-- Loading overlay -->
+  
     <div
       id="global-loading"
       class="fixed inset-0 bg-slate-950/80 z-50 flex flex-col items-center justify-center hidden"
@@ -50,7 +50,7 @@
       </p>
     </div>
 
-    <!-- Top nav -->
+ 
     <header
       class="sticky top-0 z-40 backdrop-blur bg-slate-950/80 border-b border-slate-800/80"
     >
@@ -86,7 +86,7 @@
       </nav>
     </header>
 
-    <!-- Main content -->
+
     <main class="max-w-6xl mx-auto px-4 py-6 relative z-10">
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}

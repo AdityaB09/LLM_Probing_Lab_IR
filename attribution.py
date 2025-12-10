@@ -3,7 +3,7 @@ from transformers import AutoTokenizer, AutoModel
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Simple cache so we don't reload HF models every time
+
 _MODEL_CACHE = {}
 
 
@@ -30,7 +30,7 @@ def _l2_activation_saliency(hidden_states):
     """
     layers = []
     for idx, h in enumerate(hidden_states):
-        h_seq = h[0]  # [seq, dim]
+        h_seq = h[0]  
         scores = torch.norm(h_seq, dim=-1)
         layers.append(
             {
@@ -49,7 +49,7 @@ def _attention_rollout(attentions):
     layers = []
 
     for idx, att in enumerate(attentions):
-        # [1, H, seq, seq] -> [seq, seq]
+     
         att_mean = att.mean(dim=1)[0]
         eye = torch.eye(att_mean.size(-1), device=att_mean.device)
         att_aug = att_mean + eye
@@ -60,7 +60,7 @@ def _attention_rollout(attentions):
         else:
             rollout = att_aug @ rollout
 
-        scores = rollout[0]  # attention received by tokens from CLS
+        scores = rollout[0]  
         layers.append(
             {
                 "layer_index": idx,
@@ -77,18 +77,18 @@ def _grad_input_saliency(hidden_states, target_layer):
     We backprop from the squared L2 norm of CLS at target_layer
     back to that layer's hidden states.
     """
-    # allow grads on intermediate activations
+ 
     for h in hidden_states:
         h.retain_grad()
 
-    # CLS vector at target layer
+    
     cls_vec = hidden_states[target_layer][0, 0, :]
     scalar = (cls_vec ** 2).sum()
     scalar.backward()
 
     grad = hidden_states[target_layer].grad
     if grad is None:
-        # fallback: just activation norm
+        
         h_seq = hidden_states[target_layer][0]
         scores = torch.norm(h_seq, dim=-1)
     else:
@@ -113,12 +113,10 @@ def compute_token_attributions(text, model_name, method="activation"):
         max_length=128,
     ).to(DEVICE)
 
-    # NOTE: we do NOT call requires_grad_ on encoded tensors;
-    # only float tensors can require grad, and we only need grads
-    # on the hidden states created by the model forward pass.
+   
     outputs = model(**encoded)
-    hidden_states = outputs.hidden_states  # tuple[L+1]
-    attentions = outputs.attentions        # tuple[L]
+    hidden_states = outputs.hidden_states  
+    attentions = outputs.attentions        
 
     if method == "activation":
         layers = _l2_activation_saliency(hidden_states)

@@ -112,7 +112,7 @@ def summarize_multi_run_insights(metric_key, model_stats, layer_signature):
         f"Aggregating all stored runs, we analyze trends with respect to **{metric_name}**."
     )
 
-    # Top models overall
+   
     sorted_models = sorted(model_stats, key=lambda s: s["best"], reverse=True)
     top_overall = sorted_models[:3]
 
@@ -123,7 +123,7 @@ def summarize_multi_run_insights(metric_key, model_stats, layer_signature):
             f"across {s['runs']} run(s)."
         )
 
-    # Dataset-specific winners
+   
     by_dataset = {}
     for s in model_stats:
         by_dataset.setdefault(s["dataset"], []).append(s)
@@ -137,7 +137,7 @@ def summarize_multi_run_insights(metric_key, model_stats, layer_signature):
             f"peak {metric_name} ≈ {best['best']:.3f}."
         )
 
-    # Layer signature
+    
     if layer_signature:
         hot_layer = max(layer_signature, key=lambda s: s["mean"])
         lines.append("")

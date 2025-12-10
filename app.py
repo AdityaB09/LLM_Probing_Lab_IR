@@ -16,17 +16,13 @@ import torch
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from sklearn.linear_model import LogisticRegression
-# ----------------------------------------------------
-# APP + DB
-# ----------------------------------------------------
+
 
 app = Flask(__name__)
 app.config.from_object(Config)
 init_db()
 
-# ----------------------------------------------------
-# NAV BAR
-# ----------------------------------------------------
+
 
 @app.context_processor
 def inject_globals():
@@ -54,17 +50,17 @@ def _train_probe_and_predict(texts, labels, info, model_name, text_query, max_tr
     if len(texts) == 0:
         return None
 
-    # Make labels contiguous 0..K-1
+ 
     unique_ids = sorted(set(labels))
     id_to_idx = {lab: i for i, lab in enumerate(unique_ids)}
     y = np.array([id_to_idx[l] for l in labels], dtype=np.int64)
 
-    # Label names (fall back to raw ids)
+
     label_names = info.get("label_names")
     if not label_names:
         label_names = [str(u) for u in unique_ids]
 
-    # Sub-sample for fast training
+   
     n = len(texts)
     max_train = min(max_train, n)
     if n > max_train:
@@ -108,7 +104,7 @@ def _train_probe_and_predict(texts, labels, info, model_name, text_query, max_tr
     proba = clf.predict_proba(X_q)[0]
 
     pred_idx = int(proba.argmax())
-    # Map back through continuous label ids if needed
+ 
     if pred_idx < len(label_names):
         pred_label = label_names[pred_idx]
     else:
@@ -123,9 +119,6 @@ def _train_probe_and_predict(texts, labels, info, model_name, text_query, max_tr
         "pairs": pairs,
     }
 
-# ----------------------------------------------------
-# PAGES
-# ----------------------------------------------------
 
 @app.route("/")
 def overview():
@@ -158,9 +151,7 @@ def explorer():
     )
 
 
-# ----------------------------------------------------
-# RUN PROBES (unchanged)
-# ----------------------------------------------------
+
 
 @app.route("/run-probes", methods=["GET", "POST"])
 def run_probes():
@@ -221,9 +212,7 @@ def history():
     return render_template("history.html", runs=runs)
 
 
-# ----------------------------------------------------
-# COMPARE (unchanged)
-# ----------------------------------------------------
+
 
 @app.route("/compare", methods=["GET", "POST"])
 def compare():
@@ -277,9 +266,7 @@ def compare():
     )
 
 
-# ----------------------------------------------------
-# CHART API
-# ----------------------------------------------------
+
 
 @app.route("/api/run/<int:run_id>/metrics")
 def api_run_metrics(run_id):
@@ -287,9 +274,7 @@ def api_run_metrics(run_id):
     return jsonify(metrics)
 
 
-# ----------------------------------------------------
-# HELPER — normalize attribution format
-# ----------------------------------------------------
+
 
 def normalize_attrib(tokens, raw_layers):
     """
@@ -302,7 +287,7 @@ def normalize_attrib(tokens, raw_layers):
 
     layers = {}
 
-    # Case: raw_layers = list of per-layer lists
+    
     if isinstance(raw_layers, list) and isinstance(raw_layers[0], list):
         for i, scores in enumerate(raw_layers):
             layers[str(i)] = scores
@@ -311,9 +296,7 @@ def normalize_attrib(tokens, raw_layers):
     return {"tokens": tokens, "layers": {}}
 
 
-# ----------------------------------------------------
-# ATTRIBUTION ENGINE — activation, attention, grad
-# ----------------------------------------------------
+
 
 def compute_attributions(method, model, tokenizer, text):
     inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
@@ -321,9 +304,7 @@ def compute_attributions(method, model, tokenizer, text):
 
     tokens = tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
 
-    # ------------------------------
-    # Activation Energy
-    # ------------------------------
+    
     if method == "activation":
         norms = [
             torch.norm(h[0], dim=-1).detach().tolist()
@@ -331,9 +312,7 @@ def compute_attributions(method, model, tokenizer, text):
         ]
         return normalize_attrib(tokens, norms)
 
-    # ------------------------------
-    # Attention Rollout
-    # ------------------------------
+
     if method == "attention":
         rollout = []
         for layer in outputs.attentions:
@@ -341,16 +320,14 @@ def compute_attributions(method, model, tokenizer, text):
             rollout.append(a.mean(axis=0).tolist())
         return normalize_attrib(tokens, rollout)
 
-    # ------------------------------
-    # Grad × Input
-    # ------------------------------
+   
     if method == "grad":
         model.zero_grad()
         probs = outputs.logits.softmax(dim=-1)[0]
         top = probs.max()
         top.backward()
 
-        # fix gradient retrieval
+     
         grads = []
         for h in outputs.hidden_states:
             if h.requires_grad:
@@ -363,13 +340,7 @@ def compute_attributions(method, model, tokenizer, text):
     return normalize_attrib(tokens, [])
 
 
-# ----------------------------------------------------
-# INTERPRET PAGE
-# ----------------------------------------------------
 
-# ----------------------------------------------------
-# INTERPRET (fixed)
-# ----------------------------------------------------
 from attribution import compute_token_attributions, DEVICE  # use your file
 
 @app.route("/interpret", methods=["GET", "POST"])
@@ -403,7 +374,7 @@ def interpret():
             flash("Please pick a model to interpret.", "danger")
             return redirect(url_for("interpret"))
 
-        # Always load dataset so we can train a tiny probe for prediction
+
         texts, labels, info = load_dataset(dataset_key, max_samples)
 
         if custom_text:
@@ -415,14 +386,14 @@ def interpret():
                 sample_idx = 0
             text = texts[sample_idx]
 
-        # Token-level attribution
+
         attribution = compute_token_attributions(
             text=text,
             model_name=model_name,
             method=method,
         )
 
-        # Live API prediction using small CLS probe
+     
         try:
             prediction = _train_probe_and_predict(
                 texts=texts,
@@ -432,7 +403,7 @@ def interpret():
                 text_query=text,
                 max_train=400,
             )
-        except Exception as e:  # don't crash UI if probe fails
+        except Exception as e:  
             prediction = None
 
         meta = {
@@ -477,8 +448,8 @@ def insights_ai():
             insights_data=None,
         )
 
-    model_stats = {}  # (model, dataset) -> {model, dataset, best, runs}
-    layer_stats = {}  # layer -> [metric values]
+    model_stats = {}  
+    layer_stats = {}  
 
     for r in runs:
         run_id = r["id"]
@@ -551,9 +522,6 @@ def insights_ai():
     )
 
 
-# ----------------------------------------------------
-# MAIN
-# ----------------------------------------------------
 
 if __name__ == "__main__":
     app.run(debug=True)
